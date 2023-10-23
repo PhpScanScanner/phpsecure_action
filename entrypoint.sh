@@ -4,6 +4,16 @@
 WAIT_COMPLETE=false
 DEBUG=false
 
+function failedSignal() {
+  ENDPOINT_FAILED="https://api.phpsecure.net/api/check/ci_failed"
+  RESPONSE_FAILED=$(curl --silent -H 'content-type: application/json' -H "Authorization: Bearer $PHP_SECURE_AUTH_TOKEN" -G $ENDPOINT_FAILED)
+}
+
+function successSignal() {
+  ENDPOINT_SUCCESS="https://api.phpsecure.net/api/check/ci_success/$1"
+  RESPONSE_SUCCESS=$(curl --silent -H 'content-type: application/json' -H "Authorization: Bearer $PHP_SECURE_AUTH_TOKEN" -G $ENDPOINT_SUCCESS)
+}
+
 while getopts ":w:d:" o; do
   case "${o}" in
   w)
@@ -56,6 +66,7 @@ fi
 echo "Create sources archive"
 zip -r /tmp/sources.zip $GITHUB_WORKSPACE/ -i '*.php'
 if [ $? -ne 0 ]; then
+  failedSignal
   echo "Failed to get archive with source code." >&2
   exit 1
 fi
@@ -73,6 +84,7 @@ if $DEBUG; then
 fi
 
 if [ $? -ne 0 ]; then
+  failedSignal
   echo "Failed to create project. Check the API key (environment variable PHPSECURE_AUTH_TOKEN)" >&2
   exit 1
 fi
@@ -80,6 +92,7 @@ fi
 #take uuid from answer
 PROJECT_UUID=$(echo $PROJECT_DATA | jq -r '.uuid')
 if [ -z "$PROJECT_UUID" ]; then
+  failedSignal
   echo "Failed to get project uuid" >&2
   exit 1
 fi
@@ -91,6 +104,7 @@ fi
 echo "Getting a secure URL to upload the archive"
 UPLOAD_DATA=$(curl --silent -H "Authorization: Bearer $PHPSECURE_AUTH_TOKEN" $ENDPOINT/upload_url/$PROJECT_UUID)
 if [ $? -ne 0 ]; then
+  failedSignal
   echo "Error while getting URL for secure archive upload." >&2
   exit 1
 fi
@@ -103,6 +117,7 @@ fi
 UPLOAD_URL=$(echo $UPLOAD_DATA | jq -r '.url')
 UPLOAD_UUID=$(echo $UPLOAD_DATA | jq -r '.upload_uuid')
 if [ -z "$UPLOAD_URL" ]; then
+  failedSignal
   echo "Failed to get upload URL. Check the API key (environment variable PHPSECURE_AUTH_TOKEN)." >&2
   exit 1
 fi
@@ -115,6 +130,7 @@ fi
 echo "Upload an archive to the server"
 curl --silent $UPLOAD_URL --upload-file /tmp/sources.zip
 if [ $? -ne 0 ]; then
+  failedSignal
   echo "Failed to upload archive to S3 storage for further processing." >&2
   exit 1
 fi
@@ -122,6 +138,7 @@ fi
 echo "Running source code analysis"
 SECURITY_CHECK_DATA=$(curl --silent -H "Authorization: Bearer $PHPSECURE_AUTH_TOKEN" $ENDPOINT/run/$UPLOAD_UUID/s3)
 if [ $? -ne 0 ]; then
+  failedSignal
   echo "Failed to run check. Contact technical support https://phpsecure.net/" >&2
   exit 1
 fi
@@ -132,6 +149,7 @@ fi
 
 SECURITY_CHECK_UUID=$(echo $SECURITY_CHECK_DATA | jq -r '.uuid')
 if [ -z "$SECURITY_CHECK_UUID" ]; then
+  failedSignal
   echo "Failed to run check. Contact technical support https://phpsecure.net/" >&2
   exit 1
 fi
@@ -139,6 +157,8 @@ fi
 if $DEBUG; then
   echo "Security check UUID: $SECURITY_CHECK_UUID"
 fi
+
+successSignal $PROJECT_UUID
 
 STATUS_CREATED=1
 STATUS_ON_PROCESS=2
