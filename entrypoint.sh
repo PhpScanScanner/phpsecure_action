@@ -6,12 +6,12 @@ DEBUG=false
 
 function failedSignal() {
   ENDPOINT_FAILED="https://api.phpsecure.net/api/check/ci_failed"
-  RESPONSE_FAILED=$(curl --silent -H 'content-type: application/json' -H "Authorization: Bearer $PHP_SECURE_AUTH_TOKEN" -G $ENDPOINT_FAILED)
+  RESPONSE_FAILED=$(curl --silent -H 'content-type: application/json' -H "Authorization: Bearer $PHPSECURE_AUTH_TOKEN" -G $ENDPOINT_FAILED)
 }
 
 function successSignal() {
   ENDPOINT_SUCCESS="https://api.phpsecure.net/api/check/ci_success/$1"
-  RESPONSE_SUCCESS=$(curl --silent -H 'content-type: application/json' -H "Authorization: Bearer $PHP_SECURE_AUTH_TOKEN" -G $ENDPOINT_SUCCESS)
+  RESPONSE_SUCCESS=$(curl --silent -H 'content-type: application/json' -H "Authorization: Bearer $PHPSECURE_AUTH_TOKEN" -G $ENDPOINT_SUCCESS)
 }
 
 while getopts ":w:d:" o; do
